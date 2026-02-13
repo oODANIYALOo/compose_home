@@ -1,0 +1,80 @@
+
+services:
+  ollama:
+    container_name: ollama
+    image: ollama/ollama:0.13.2-rc2
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - llm-network
+    deploy:
+      resources:
+        limits:
+          memory: 9G
+
+  anythingllm:
+    container_name: anythingllm
+    image: mintplexlabs/anythingllm:latest
+    ports:
+      - "3000:3001"
+    environment:
+      - SERVER_PORT=3001
+      - STORAGE_DIR=/app/server/storage
+      - JWT_SECRET=change_this_to_a_random_string_12345
+      
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL_PREF=llama3.2:latest
+      
+      - VECTOR_DB=lancedb 
+      
+      
+      - DISABLE_TELEMETRY=true
+      - ENFORCE_SSL=false
+      - ALLOW_REGISTRATION=false
+      
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      
+    volumes:
+      - anythingllm_data:/app/server/storage
+      - ./documents:/app/server/storage/documents
+    depends_on:
+      ollama:
+        condition: service_started
+    networks:
+      - llm-network
+    # تنظیمات healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chromadb
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma_data
+      - ANONYMIZED_TELEMETRY=FALSE
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=*  # یا مقادیر خاص
+    volumes:
+      - chroma_data:/chroma/chroma_data
+    ports:
+      - "8000:8000"
+    networks:
+      - llm-network
+
+volumes:
+  ollama_data:
+    name: ollama_data
+  anythingllm_data:
+    name: anythingllm_data
+  chroma_data:
+    name: chroma_data
+
+networks:
+  llm-network:
+    driver: bridge

@@ -1,0 +1,41 @@
+services:
+  registry:
+    image: registry:2
+    container_name: docker-registry
+    ports:
+      - "5000:5000"
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true" 
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /data
+      REGISTRY_AUTH: "" 
+    volumes:
+      - registry_data:/data
+    networks:
+      - registry-network
+
+  registry-ui:
+    image: joxit/docker-registry-ui:static
+    container_name: registry-ui
+    ports:
+      - "8001:80"
+    environment:
+      - SINGLE_REGISTRY=true
+      - REGISTRY_TITLE=Private Docker Registry
+      - REGISTRY_URL=http://registry:5000
+      - DELETE_IMAGES=true
+      - SHOW_CONTENT_DIGEST=true
+      - NGINX_PROXY_BUFFERING=off
+      - CATALOG_ELEMENTS_LIMIT=1000
+      - SHOW_CATALOG_NB_TAGS=true
+    depends_on:
+      - registry
+    networks:
+      - registry-network
+
+networks:
+  registry-network:
+    driver: bridge
+
+volumes:
+  registry_data:
+    driver: local
